@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Process Scheduler</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin: 5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #059669;
+        }
+
+        .btn-danger {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #dc2626;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            color: #374151;
+            font-size: 14px;
+        }
+
+        .gantt-chart {
+            margin: 20px 0;
+            background: #f3f4f6;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .gantt-bar {
+            display: flex;
+            height: 50px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .gantt-segment {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            border-right: 2px solid white;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .gantt-segment:hover {
+            transform: scaleY(1.1);
+            z-index: 10;
+        }
+
+        .gantt-segment.process {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .gantt-segment.idle {
+            background: #9ca3af;
+        }
+
+        .gantt-timeline {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .results-table {
+            overflow-x: auto;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .metric-card h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .metric-card .value {
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            .control-group {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1> Process Scheduler Simulator</h1>
+
+        <div class="card">
+            <h2>Process List</h2>
+            <div class="controls">
+                <div class="control-group">
+                    <label>Choose Algorithm</label>
+                    <select id="algorithm">
+                        <option value="fcfs">FCFS</option>
+                        <option value="sjf">SJF (Non-preemptive)</option>
+                        <option value="rr">Round Robin</option>
+                        <option value="priority">Priority</option>
+                    </select>
+                </div>
+
+                <div class="control-group" id="quantumGroup" style="display: none;">
+                    <label>Time Quantum</label>
+                    <input type="number" id="timeQuantum" value="3" min="1">
+                </div>
+
+                <button class="btn btn-success" onclick="addProcess()">+ Add Process </button>
+                <button class="btn btn-primary" onclick="runScheduler()">▶ RUN</button>
+            </div>
+
+            <table id="processTable">
+                <thead>
+                    <tr>
+                        <th>Process ID</th>
+                        <th>Arrival Time</th>
+                        <th>Burst Time</th>
+                        <th>Priority</th>
+                        <th>Process</th>
+                    </tr>
+                </thead>
+                <tbody id="processTableBody">
+                    <tr>
+                        <td><input type="text" value="P1" class="process-id"></td>
+                        <td><input type="number" value="0" class="arrival-time" min="0"></td>
+                        <td><input type="number" value="5" class="burst-time" min="1"></td>
+                        <td><input type="number" value="2" class="priority" min="1"></td>
+                        <td><button class="btn btn-danger" onclick="removeProcess(this)">Sil</button></td>
+                    </tr>
+                    <tr>
+                        <td><input type="text" value="P2" class="process-id"></td>
+                        <td><input type="number" value="1" class="arrival-time" min="0"></td>
+                        <td><input type="number" value="3" class="burst-time" min="1"></td>
+                        <td><input type="number" value="1" class="priority" min="1"></td>
+                        <td><button class="btn btn-danger" onclick="removeProcess(this)">Sil</button></td>
+                    </tr>
+                    <tr>
+                        <td><input type="text" value="P3" class="process-id"></td>
+                        <td><input type="number" value="2" class="arrival-time" min="0"></td>
+                        <td><input type="number" value="8" class="burst-time" min="1"></td>
+                        <td><input type="number" value="3" class="priority" min="1"></td>
+                        <td><button class="btn btn-danger" onclick="removeProcess(this)">Sil</button></td>
+                    </tr>
+                    <tr>
+                        <td><input type="text" value="P4" class="process-id"></td>
+                        <td><input type="number" value="3" class="arrival-time" min="0"></td>
+                        <td><input type="number" value="6" class="burst-time" min="1"></td>
+                        <td><input type="number" value="2" class="priority" min="1"></td>
+                        <td><button class="btn btn-danger" onclick="removeProcess(this)">Sil</button></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div id="resultsContainer"></div>
+    </div>
+
+    <script>
+        // Show/hide time quantum input based on algorithm selection
+        document.getElementById('algorithm').addEventListener('change', function() {
+            const quantumGroup = document.getElementById('quantumGroup');
+            quantumGroup.style.display = this.value === 'rr' ? 'block' : 'none';
+        });
+
+        let processCounter = 5;
+
+        function addProcess() {
+            const tbody = document.getElementById('processTableBody');
+            const row = tbody.insertRow();
+            
+            row.innerHTML = `
+                <td><input type="text" value="P${processCounter}" class="process-id"></td>
+                <td><input type="number" value="0" class="arrival-time" min="0"></td>
+                <td><input type="number" value="1" class="burst-time" min="1"></td>
+                <td><input type="number" value="1" class="priority" min="1"></td>
+                <td><button class="btn btn-danger" onclick="removeProcess(this)">Sil</button></td>
+            `;
+            
+            processCounter++;
+        }
+
+        function removeProcess(button) {
+            const row = button.closest('tr');
+            row.remove();
+        }
+
+        function getProcesses() {
+            const rows = document.querySelectorAll('#processTableBody tr');
+            const processes = [];
+
+            rows.forEach(row => {
+                const id = row.querySelector('.process-id').value;
+                const arrival = row.querySelector('.arrival-time').value;
+                const burst = row.querySelector('.burst-time').value;
+                const priority = row.querySelector('.priority').value;
+
+                processes.push({
+                    id: id,
+                    arrival: parseInt(arrival),
+                    burst: parseInt(burst),
+                    priority: parseInt(priority),
+                    remainingTime: parseInt(burst),
+                    finishTime: 0,
+                    turnaroundTime: 0,
+                    waitingTime: 0
+                });
+            });
+
+            return processes;
+        }
+
+        async function runScheduler() {
+            const processes = getProcesses();
+            
+            if (processes.length === 0) {
+                alert('Please add at least one process!');
+                return;
+            }
+
+            const algorithm = document.getElementById('algorithm').value;
+            const timeQuantum = parseInt(document.getElementById('timeQuantum').value);
+
+            // Show loading
+            const container = document.getElementById('resultsContainer');
+            container.innerHTML = '<div class="card"><h2>Calculating...</h2><p>Please wait...</p></div>';
+
+            try {
+                // Call Flask API
+                const response = await fetch('/api/schedule', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        processes: processes,
+                        algorithm: algorithm,
+                        time_quantum: timeQuantum
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'An error occurred');
+                }
+
+                const result = await response.json();
+                
+                // Map algorithm name
+                let algoName;
+                switch(algorithm) {
+                    case 'fcfs':
+                        algoName = 'FCFS (First-Come, First-Served)';
+                        break;
+                    case 'sjf':
+                        algoName = 'SJF (Shortest Job First - Non-preemptive)';
+                        break;
+                    case 'rr':
+                        algoName = `Round Robin (Time Quantum = ${timeQuantum})`;
+                        break;
+                    case 'priority':
+                        algoName = 'Priority Scheduling (Non-preemptive)';
+                        break;
+                    default:
+                        algoName = algorithm;
+                }
+
+                displayResults(result, algoName);
+            } catch (error) {
+                container.innerHTML = `
+                    <div class="card">
+                        <h2 style="color: #ef4444;">Error</h2>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function displayResults(data, algoName) {
+            const container = document.getElementById('resultsContainer');
+            
+            let html = `
+                <div class="card">
+                    <h2>${algoName}</h2>
+                    
+                    <div class="gantt-chart">
+                        <h3 style="margin-bottom: 15px;">Gantt Chart</h3>
+                        <div class="gantt-bar">
+            `;
+
+            // Generate Gantt chart
+            const totalTime = data.total_time;
+            data.gantt.forEach(segment => {
+                const width = ((segment.end_time - segment.start_time) / totalTime) * 100;
+                const className = segment.process_id === 'IDLE' ? 'idle' : 'process';
+                html += `
+                    <div class="gantt-segment ${className}" style="width: ${width}%" title="${segment.process_id}: ${segment.start_time}-${segment.end_time}">
+                        ${segment.process_id}
+                    </div>
+                `;
+            });
+
+            html += `
+                        </div>
+                        <div class="gantt-timeline">
+            `;
+
+            // Timeline
+            data.gantt.forEach(segment => {
+                html += `<span>${segment.start_time}</span>`;
+            });
+            html += `<span>${totalTime}</span>`;
+
+            html += `
+                        </div>
+                    </div>
+
+                    <div class="results-table">
+                        <h3 style="margin-bottom: 15px;">Process Details</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Process</th>
+                                    <th>Arrival Time</th>
+                                    <th>Burst Time</th>
+                                    <th>Finish Time</th>
+                                    <th>Turnaround Time</th>
+                                    <th>Waiting Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+
+            data.processes.forEach(proc => {
+                html += `
+                    <tr>
+                        <td>${proc.process_id}</td>
+                        <td>${proc.arrival_time}</td>
+                        <td>${proc.burst_time}</td>
+                        <td>${proc.finish_time}</td>
+                        <td>${proc.turnaround_time}</td>
+                        <td>${proc.waiting_time}</td>
+                    </tr>
+                `;
+            });
+
+            const avgTurnaround = data.average_turnaround_time;
+            const avgWaiting = data.average_waiting_time;
+            const cpuUtil = data.cpu_utilization;
+
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="metrics">
+                        <div class="metric-card">
+                            <h3>Average Turnaround Time</h3>
+                            <div class="value">${avgTurnaround}</div>
+                        </div>
+                        <div class="metric-card">
+                            <h3>Average Waiting Time</h3>
+                            <div class="value">${avgWaiting}</div>
+                        </div>
+                        <div class="metric-card">
+                            <h3>CPU Utilization</h3>
+                            <div class="value">${cpuUtil}%</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
